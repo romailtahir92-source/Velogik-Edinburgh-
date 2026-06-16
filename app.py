@@ -6,28 +6,30 @@ st.set_page_config(page_title="Voi Edinburgh Weekly Planner", layout="centered")
 
 st.title("🚲 Voi Edinburgh Weekly Master Planner")
 st.markdown("### Monday - Sunday Fleet Operations Optimizer")
+st.write("---")
 
-# --- SIDEBAR: GLOBAL METRICS & PARAMETERS ---
-st.sidebar.header("⚙️ Global Weekly Parameters")
+# --- SECTION 1: TOP GLOBAL PARAMETERS (FULLY ADJUSTABLE) ---
+st.markdown("#### ⚙️ Top Core Metrics & Target Controls")
+col_top1, col_top2 = st.columns(2)
 
-current_dt = st.sidebar.slider("Current Downtime %", 5, 30, 20)
-target_dt = st.sidebar.slider("Weekly Target Downtime %", 5, 25, 17)
-open_tasks = st.sidebar.number_input("Outstanding Backlog Tasks (Start of Week)", value=150, step=10)
-staff_cap = st.sidebar.slider("Individual Driver Capacity (Tasks/Shift)", 60, 140, 100)
+with col_top1:
+    current_dt = st.slider("Current Downtime %", 5, 30, 20)
+    target_dt = st.slider("Weekly Target Downtime %", 5, 25, 17)
+    weekly_task_increase = st.number_input(
+        "Average Task Increase Per Week (Dynamic Churn)", 
+        value=140, 
+        step=10,
+        help="Adjust this to account for seasonal growth or high-demand festival spikes over the week."
+    )
 
-# NEW: Dynamic Weekly Task Volume Increase Area
-st.sidebar.markdown("---")
-st.sidebar.subheader("📈 Dynamic Task Growth")
-weekly_task_increase = st.sidebar.number_input(
-    "Avg. Dynamic Task Increase (New Tasks/Week)", 
-    value=140, 
-    step=10,
-    help="Account for natural business growth, summer peak spikes, or heavy weather churn over the week."
-)
+with col_top2:
+    open_tasks = st.number_input("Outstanding Backlog Tasks (Start of Week)", value=150, step=10)
+    staff_cap = st.slider("Individual Driver Capacity (Tasks/Shift)", 60, 140, 100)
 
-# --- LOGIC ENGINE (WEEKLY SCALE) ---
+# --- LOGIC ENGINE ---
 baseline_daily_tasks = 450  # Velogik standard baseline
 daily_growth_fraction = weekly_task_increase / 7
+hourly_growth_fraction = weekly_task_increase / (7 * 24)
 
 dt_gap = max(0, current_dt - target_dt)
 daily_backlog_clear_demand = (dt_gap * 0.2 * open_tasks)
@@ -44,20 +46,20 @@ ideal_total_headcount = math.ceil(total_daily_required_tasks / staff_cap)
 ideal_night_staff = math.ceil(ideal_total_headcount * 0.55)
 ideal_day_staff = max(1, ideal_total_headcount - ideal_night_staff)
 
-# --- HOME PAGE SUMMARY ---
-st.markdown("#### 📊 Weekly Workload Target Breakdown")
-col_totals1, col_totals2, col_totals3 = st.columns(3)
-with col_totals1:
-    st.metric(label="Target Workload / Day", value=f"{total_daily_required_tasks} Tasks")
-with col_totals2:
-    st.metric(label="Weekly Dynamic Growth", value=f"+{round(daily_growth_fraction, 1)} tasks/day")
-with col_totals3:
-    st.metric(label="Hourly Fleet Velocity", value=f"{round(total_daily_required_tasks / 24, 1)} tasks/hr")
-
-st.info(f"💡 **To hit your {target_dt}% downtime target this week:** Your team must clear a total of **{total_daily_required_tasks * 7} tasks** across the 7 days.")
-
+# --- MAIN WORKLOAD SUMMARY ---
 st.write("---")
-st.markdown("#### 📅 Monday - Sunday Shift Rosters")
+st.markdown("#### 📊 Target Workload Breakdown")
+col_totals1, col_totals2 = st.columns(2)
+with col_totals1:
+    st.metric(label="Target Workload Required / Day", value=f"{total_daily_required_tasks} Tasks")
+with col_totals2:
+    st.metric(label="Total Required Targets / Week", value=f"{total_daily_required_tasks * 7} Tasks")
+
+st.info(f"💡 **Target Strategy:** To drop downtime from {current_dt}% down to {target_dt}%, your team must systematically clear at least **{total_daily_required_tasks} total tasks every 24 hours**.")
+
+# --- SECTION 2: MONDAY - SUNDAY ROSTERS ---
+st.write("---")
+st.markdown("#### 📅 Monday - Sunday Shift Schedules")
 st.write("Tap on each day to adjust your live schedule and view the shift impact summaries.")
 
 # Pre-programmed defaults matching your actual team constraints
@@ -127,3 +129,28 @@ for idx, (day, staff) in enumerate(default_schedule.items()):
                     st.success(f"✅ **Adequate Coverage.**\n\nTarget allocation: **{math.ceil(night_required_tasks / actual_night)} tasks/person**.")
             else:
                 st.error(f"🚨 **Critical Alert:** 0 staff. All {night_required_tasks} tasks leak to downtime.")
+
+# --- SECTION 3: BOTTOM OPERATIONAL GUIDANCE EXPLANATION ---
+st.write("---")
+st.markdown("### 📋 Dynamic Velocity Guidance")
+st.markdown(
+    f"Based on your adjustable configuration of an average **{weekly_task_increase} dynamic task increase per week**, "
+    f"here is how the fleet's natural churn scale impacts your daily scheduling decisions:"
+)
+
+col_guide1, col_guide2, col_guide3 = st.columns(3)
+with col_guide1:
+    st.metric(label="Weekly Target Influx", value=f"+{weekly_task_increase} Tasks")
+with col_guide2:
+    st.metric(label="Daily Churn Rate", value=f"+{round(daily_growth_fraction, 1)} Tasks")
+with col_guide3:
+    st.metric(label="Hourly Task Velocity", value=f"+{round(hourly_growth_fraction, 1)} Tasks")
+
+st.markdown(
+    f"> **Supervisor Advisory Note:** The fleet naturally accumulates approximately **{round(daily_growth_fraction, 1)} new tasks every single day**, "
+    f"which breaks down to an incoming velocity of **{round(hourly_growth_fraction, 1)} new tasks every single hour** across Edinburgh.\n"
+    f">\n"
+    f"> Because these parameters are fully adjustable, raising the weekly task increase will automatically scale up the **Ideal Staff Target** "
+    f"shown in the schedule tabs above. Use higher values during summer peaks (like the Fringe Festival) or severe weather events "
+    f"to ensure your rosters scale up before downtime accumulates."
+)
